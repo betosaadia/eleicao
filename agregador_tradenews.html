@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agregador Eleitoral TRADENEWS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #111; color: #e8e8e8; font-family: 'IBM Plex Sans', 'Helvetica Neue', sans-serif; padding: 36px 32px 48px; min-height: 100vh; }
+.top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 6px; }
+.top-left { flex: 1; }
+h1 { font-size: 26px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #f0f0f0; margin-bottom: 6px; }
+h2 { font-size: 36px; font-weight: 700; color: #f0f0f0; margin-bottom: 6px; }
+.subtitle { font-size: 22px; font-weight: 600; color: #bbb; margin-bottom: 6px; }
+.obs { font-size: 18px; color: #555; margin-bottom: 28px; }
+.wa-btn-wrap { flex-shrink: 0; padding-top: 2px; }
+.wa-btn {
+  display: inline-block;
+  background: #c8e05b;
+  color: #1a1f00;
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 16px 24px;
+  border-radius: 8px;
+  text-align: center;
+  line-height: 1.4;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.wa-btn:hover { background: #d5eb6e; transform: scale(1.02); }
+.wa-btn:active { transform: scale(0.98); }
+.toggle-btns { display: flex; gap: 12px; margin-bottom: 26px; }
+.toggle-btn { display: flex; align-items: center; gap: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #aaa; font-size: 24px; font-weight: 500; padding: 10px 24px; cursor: pointer; transition: all 0.15s; user-select: none; }
+.toggle-btn .dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
+.toggle-btn.active-lula { border-color: #e85c5c; color: #e85c5c; background: rgba(232,92,92,0.08); }
+.toggle-btn.active-flavio { border-color: #5b9bd5; color: #5b9bd5; background: rgba(91,155,213,0.08); }
+.toggle-btn.inactive { opacity: 0.35; }
+.current-vals { display: flex; gap: 48px; margin-bottom: 26px; }
+.cv-item { display: flex; flex-direction: column; transition: opacity 0.2s; }
+.cv-item.hidden { opacity: 0.2; }
+.cv-label { font-size: 20px; color: #555; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+.cv-val { font-size: 56px; font-weight: 700; line-height: 1; }
+.cv-val.lula { color: #e85c5c; }
+.cv-val.flavio { color: #5b9bd5; }
+.cv-sub { font-size: 16px; color: #555; margin-top: 4px; }
+.chart-wrap { position: relative; width: 100%; height: 420px; }
+</style>
+</head>
+<body>
+
+<div class="top-row">
+  <div class="top-left">
+    <h1>Agregador Eleitoral TRADENEWS</h1>
+  </div>
+  <div class="wa-btn-wrap">
+    <a class="wa-btn" href="https://chat.whatsapp.com/KJwqnFKd1k5Gm0rpeQw3BH" target="_blank" rel="noopener">
+      ACESSE O TRADENEWS<br>WHATSAPP
+    </a>
+  </div>
+</div>
+
+<h2>Intenção de Voto — 2º Turno</h2>
+<p class="subtitle">TRADENEWS É O MAIOR CANAL DE WHATSAPP DO MERCADO FINANCEIRO.</p>
+<p class="obs">Institutos: Quaest, CNT/MDA, Datafolha, Ideia/Meio, Paraná Pesquisas, AtlasIntel, Real Time Big Data</p>
+
+<div class="toggle-btns">
+  <button class="toggle-btn active-lula" id="btn-lula" onclick="toggleCandidate('lula')">
+    <span class="dot" style="background:#e85c5c;"></span>Lula
+  </button>
+  <button class="toggle-btn active-flavio" id="btn-flavio" onclick="toggleCandidate('flavio')">
+    <span class="dot" style="background:#5b9bd5;"></span>Flávio Bolsonaro
+  </button>
+</div>
+
+<div class="current-vals">
+  <div class="cv-item" id="cv-lula">
+    <span class="cv-label">Lula</span>
+    <span class="cv-val lula" id="cur-lula">—</span>
+    <span class="cv-sub">média móvel ponderada</span>
+  </div>
+  <div class="cv-item" id="cv-flavio">
+    <span class="cv-label">Flávio Bolsonaro</span>
+    <span class="cv-val flavio" id="cur-flavio">—</span>
+    <span class="cv-sub">média móvel ponderada</span>
+  </div>
+</div>
+
+<div class="chart-wrap">
+  <canvas id="chart"></canvas>
+</div>
+
+<script>
+const surveys = [
+  {name:'Ideia/Meio',dateStr:'13/1',ts:new Date(2026,0,13),lula:46.2,flavio:36.0},
+  {name:'Quaest',dateStr:'14/1',ts:new Date(2026,0,14),lula:45.0,flavio:38.0},
+  {name:'AtlasIntel',dateStr:'21/1',ts:new Date(2026,0,21),lula:49.0,flavio:45.0},
+  {name:'Paraná Pesquisas',dateStr:'29/1',ts:new Date(2026,0,29),lula:44.8,flavio:42.2},
+  {name:'Quaest',dateStr:'11/2',ts:new Date(2026,1,11),lula:43.0,flavio:38.0},
+  {name:'AtlasIntel',dateStr:'25/2',ts:new Date(2026,1,25),lula:46.2,flavio:46.3},
+  {name:'Paraná Pesquisas',dateStr:'27/2',ts:new Date(2026,1,27),lula:43.8,flavio:44.4},
+  {name:'Real Time Big Data',dateStr:'3/3',ts:new Date(2026,2,3),lula:42.0,flavio:41.0},
+  {name:'Datafolha',dateStr:'7/3',ts:new Date(2026,2,7),lula:46.0,flavio:43.0},
+  {name:'Ideia/Meio',dateStr:'11/3',ts:new Date(2026,2,11),lula:47.4,flavio:45.3},
+  {name:'Quaest',dateStr:'11/3',ts:new Date(2026,2,11),lula:41.0,flavio:41.0},
+  {name:'AtlasIntel',dateStr:'25/3',ts:new Date(2026,2,25),lula:46.6,flavio:47.6},
+  {name:'Paraná Pesquisas',dateStr:'30/3',ts:new Date(2026,2,30),lula:44.1,flavio:45.2},
+  {name:'Ideia/Meio',dateStr:'8/4',ts:new Date(2026,3,8),lula:45.5,flavio:45.8},
+  {name:'Datafolha',dateStr:'11/4',ts:new Date(2026,3,11),lula:45.0,flavio:46.0},
+  {name:'CNT/MDA',dateStr:'14/4',ts:new Date(2026,3,14),lula:44.9,flavio:40.2},
+  {name:'Quaest',dateStr:'15/4',ts:new Date(2026,3,15),lula:40.0,flavio:42.0},
+];
+
+surveys.sort((a,b)=>a.ts-b.ts);
+const state={lula:true,flavio:true};
+
+function wma(key,win){
+  return surveys.map(s=>{
+    let ws=0,t=0;
+    surveys.forEach(s2=>{
+      const d=Math.abs((s.ts-s2.ts)/86400000);
+      if(d<=win){const w=Math.exp(-0.5*Math.pow(d/(win/2),2));ws+=w;t+=s2[key]*w;}
+    });
+    return ws>0?t/ws:s[key];
+  });
+}
+
+const lulaAvg=wma('lula',20),flavioAvg=wma('flavio',20);
+let chart;
+
+function buildChart(){
+  const ctx=document.getElementById('chart').getContext('2d');
+  if(chart)chart.destroy();
+  chart=new Chart(ctx,{
+    type:'scatter',
+    data:{datasets:[
+      {type:'line',label:'Lula (média)',data:surveys.map((s,i)=>({x:i,y:lulaAvg[i]})),borderColor:'#e85c5c',backgroundColor:'transparent',pointRadius:0,pointHoverRadius:0,borderWidth:3,tension:0.4,fill:false,order:1,hidden:!state.lula},
+      {type:'line',label:'Flávio (média)',data:surveys.map((s,i)=>({x:i,y:flavioAvg[i]})),borderColor:'#5b9bd5',backgroundColor:'transparent',pointRadius:0,pointHoverRadius:0,borderWidth:3,tension:0.4,fill:false,order:1,hidden:!state.flavio},
+      {type:'scatter',label:'Lula',data:surveys.map((s,i)=>({x:i,y:s.lula,name:s.name,date:s.dateStr})),backgroundColor:'rgba(232,92,92,0.5)',borderColor:'#e85c5c',borderWidth:1,pointRadius:6,pointHoverRadius:9,order:0,hidden:!state.lula},
+      {type:'scatter',label:'Flávio Bolsonaro',data:surveys.map((s,i)=>({x:i,y:s.flavio,name:s.name,date:s.dateStr})),backgroundColor:'rgba(91,155,213,0.5)',borderColor:'#5b9bd5',borderWidth:1,pointRadius:6,pointHoverRadius:9,order:0,hidden:!state.flavio},
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'nearest',intersect:false,axis:'x'},
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#1a1a1a',borderColor:'#2a2a2a',borderWidth:1,titleColor:'#888',bodyColor:'#e8e8e8',padding:14,titleFont:{size:18},bodyFont:{size:18},
+          filter:item=>item.datasetIndex>=2,
+          callbacks:{
+            title:items=>(items[0].raw.name||'')+' · '+(items[0].raw.date||''),
+            label:ctx=>'  '+ctx.dataset.label+': '+ctx.parsed.y.toFixed(1)+'%'
+          }
+        }
+      },
+      scales:{
+        x:{type:'linear',min:-0.5,max:surveys.length-0.5,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:16},maxRotation:45,autoSkip:true,maxTicksLimit:12,stepSize:1,callback:val=>{const i=Math.round(val);return(surveys[i]&&Number.isInteger(val))?surveys[i].dateStr:'';}},border:{color:'#2a2a2a'}},
+        y:{min:30,max:55,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#666',font:{size:16},callback:v=>v+'%',stepSize:5},border:{color:'#2a2a2a'}}
+      }
+    }
+  });
+}
+
+function updateUI(){
+  document.getElementById('btn-lula').className='toggle-btn'+(state.lula?' active-lula':' inactive');
+  document.getElementById('btn-flavio').className='toggle-btn'+(state.flavio?' active-flavio':' inactive');
+  document.getElementById('cv-lula').className='cv-item'+(state.lula?'':' hidden');
+  document.getElementById('cv-flavio').className='cv-item'+(state.flavio?'':' hidden');
+  if(chart){
+    chart.data.datasets[0].hidden=!state.lula;
+    chart.data.datasets[1].hidden=!state.flavio;
+    chart.data.datasets[2].hidden=!state.lula;
+    chart.data.datasets[3].hidden=!state.flavio;
+    chart.update();
+  }
+}
+
+function toggleCandidate(who){
+  const other=who==='lula'?'flavio':'lula';
+  if(state[who]&&!state[other])return;
+  state[who]=!state[who];
+  updateUI();
+}
+
+const last=surveys.length-1;
+document.getElementById('cur-lula').textContent=lulaAvg[last].toFixed(1)+'%';
+document.getElementById('cur-flavio').textContent=flavioAvg[last].toFixed(1)+'%';
+buildChart();
+updateUI();
+</script>
+</body>
+</html>
